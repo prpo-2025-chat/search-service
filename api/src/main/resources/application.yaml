@@ -1,0 +1,10 @@
+server:
+  port: 8083
+spring:
+  application:
+    name: search-service
+
+  elasticsearch:
+    uris: http://${ELASTICSEARCH_HOST:localhost}:${ELASTICSEARCH_PORT:9200}
+    username: ${ELASTICSEARCH_USERNAME:}
+    password: ${ELASTICSEARCH_PASSWORD:}
