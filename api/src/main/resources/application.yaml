@@ -1,5 +1,5 @@
 server:
-  port: 8083
+  port: 8084
 spring:
   application:
     name: search-service
@@ -8,3 +8,9 @@ spring:
     uris: http://${ELASTICSEARCH_HOST:localhost}:${ELASTICSEARCH_PORT:9200}
     username: ${ELASTICSEARCH_USERNAME:}
     password: ${ELASTICSEARCH_PASSWORD:}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui
