@@ -5,7 +5,7 @@ spring:
     name: search-service
 
   elasticsearch:
-    uris: http://${ELASTICSEARCH_HOST:localhost}:${ELASTICSEARCH_PORT:9200}
+    uris: ${ELASTICSEARCH_URI:http://localhost:9200}
     username: ${ELASTICSEARCH_USERNAME:}
     password: ${ELASTICSEARCH_PASSWORD:}
 
