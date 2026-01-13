@@ -31,3 +31,7 @@ management:
       show-details: always
       probes:
         enabled: true
+
+server-service:
+  base-url: ${SERVER_SERVICE_BASE_URL:http://localhost:8031/api/}
+

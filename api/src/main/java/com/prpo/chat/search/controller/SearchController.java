@@ -39,17 +39,21 @@ import jakarta.validation.constraints.NotBlank;
 public class SearchController {
 
     private final SearchService searchService;
+    private final com.prpo.chat.search.client.ServerClient serverClient;
 
-    public SearchController(SearchService searchService) {
+    public SearchController(SearchService searchService, com.prpo.chat.search.client.ServerClient serverClient) {
         this.searchService = searchService;
+        this.serverClient = serverClient;
     }
 
-    @Operation(summary = "Search messages with filters", description = "Full-text search on messages with optional filters for channel, sender, and date range")
+    @Operation(summary = "Search messages with filters", description = "Full-text search on messages with optional filters for channel, sender, and date range. Access is restricted to channels the user is a member of.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Search results retrieved successfully")
     })
     @GetMapping("/messages")
     public SearchPageDto<MessageSearchResultDto> searchMessages(
+            @Parameter(description = "User ID (for access control)", required = true) @RequestParam @NotBlank String userId,
+
             @Parameter(description = "Search query text", required = true) @RequestParam @NotBlank String query,
 
             @Parameter(description = "Filter by channel ID") @RequestParam(required = false) String channelId,
@@ -64,8 +68,10 @@ public class SearchController {
 
             @Parameter(description = "Page size", example = "20") @RequestParam(defaultValue = "20") int size) {
 
+        java.util.List<String> allowedChannelIds = serverClient.getChannelIdsForUser(userId);
+
         SearchPage<MessageSearchResult> results = searchService.searchMessagesWithFilters(
-                query, channelId, senderId, dateFrom, dateTo, page, size);
+                query, channelId, senderId, allowedChannelIds, dateFrom, dateTo, page, size);
 
         List<MessageSearchResultDto> content = results.getContent().stream()
                 .map(this::toMessageResultDto)

@@ -34,7 +34,7 @@ public class SearchService {
     private final ElasticsearchOperations elasticsearchOperations;
 
     public SearchService(
-            MessageSearchRepository messageRepository, 
+            MessageSearchRepository messageRepository,
             UserSearchRepository userRepository,
             ElasticsearchOperations elasticsearchOperations) {
         this.messageRepository = messageRepository;
@@ -43,23 +43,39 @@ public class SearchService {
     }
 
     public SearchPage<MessageSearchResult> searchMessagesWithFilters(
-            String query, 
-            String channelId, 
-            String senderId, 
-            Date dateFrom, 
+            String query,
+            String channelId,
+            String senderId,
+            List<String> allowedChannelIds,
+            Date dateFrom,
             Date dateTo,
             int page,
             int size) {
-        
+
         // Validate and cap page size
-        if (size <= 0) size = DEFAULT_PAGE_SIZE;
-        if (size > MAX_PAGE_SIZE) size = MAX_PAGE_SIZE;
-        if (page < 0) page = 0;
-        
+        if (size <= 0)
+            size = DEFAULT_PAGE_SIZE;
+        if (size > MAX_PAGE_SIZE)
+            size = MAX_PAGE_SIZE;
+        if (page < 0)
+            page = 0;
+
+        if (allowedChannelIds == null || allowedChannelIds.isEmpty()) {
+            return new SearchPage<>(List.of(), page, size, 0, 0);
+        }
+
+        if (channelId != null && !channelId.isEmpty()) {
+            if (!allowedChannelIds.contains(channelId)) {
+                return new SearchPage<>(List.of(), page, size, 0, 0);
+            }
+        }
+
         Criteria criteria = new Criteria("content").fuzzy(query);
-        
+
         if (channelId != null && !channelId.isEmpty()) {
             criteria = criteria.and(new Criteria("channelId").is(channelId));
+        } else {
+            criteria = criteria.and(new Criteria("channelId").in(allowedChannelIds));
         }
         if (senderId != null && !senderId.isEmpty()) {
             criteria = criteria.and(new Criteria("senderId").is(senderId));
@@ -70,39 +86,39 @@ public class SearchService {
         if (dateTo != null) {
             criteria = criteria.and(new Criteria("dateSent").lessThanEqual(dateTo));
         }
-        
+
         // Configure highlighting
         HighlightParameters highlightParams = HighlightParameters.builder()
-            .withPreTags("<em>")
-            .withPostTags("</em>")
-            .build();
-        
+                .withPreTags("<em>")
+                .withPostTags("</em>")
+                .build();
+
         Highlight highlight = new Highlight(
-            highlightParams,
-            List.of(new HighlightField("content"))
-        );
-        
+                highlightParams,
+                List.of(new HighlightField("content")));
+
         CriteriaQuery searchQuery = new CriteriaQuery(criteria);
         searchQuery.setPageable(PageRequest.of(page, size));
-        searchQuery.setHighlightQuery(new org.springframework.data.elasticsearch.core.query.HighlightQuery(highlight, MessageDocument.class));
-        
+        searchQuery.setHighlightQuery(
+                new org.springframework.data.elasticsearch.core.query.HighlightQuery(highlight, MessageDocument.class));
+
         SearchHits<MessageDocument> hits = elasticsearchOperations.search(
-            searchQuery, MessageDocument.class);
-        
+                searchQuery, MessageDocument.class);
+
         List<MessageSearchResult> content = hits.getSearchHits().stream()
-            .map(hit -> {
-                String highlighted = null;
-                List<String> highlightField = hit.getHighlightField("content");
-                if (highlightField != null && !highlightField.isEmpty()) {
-                    highlighted = String.join(" ... ", highlightField);
-                }
-                return new MessageSearchResult(hit.getContent(), highlighted);
-            })
-            .toList();
-        
+                .map(hit -> {
+                    String highlighted = null;
+                    List<String> highlightField = hit.getHighlightField("content");
+                    if (highlightField != null && !highlightField.isEmpty()) {
+                        highlighted = String.join(" ... ", highlightField);
+                    }
+                    return new MessageSearchResult(hit.getContent(), highlighted);
+                })
+                .toList();
+
         long totalHits = hits.getTotalHits();
         int totalPages = (int) Math.ceil((double) totalHits / size);
-        
+
         return new SearchPage<>(content, page, size, totalHits, totalPages);
     }
 
@@ -123,21 +139,21 @@ public class SearchService {
     }
 
     public List<UserDocument> searchUsers(String query) {
-        
+
         Criteria criteria = new Criteria("username").fuzzy(query)
-            .or(new Criteria("displayName").fuzzy(query));
-        
+                .or(new Criteria("displayName").fuzzy(query));
+
         CriteriaQuery searchQuery = new CriteriaQuery(criteria);
         SearchHits<UserDocument> hits = elasticsearchOperations.search(
-            searchQuery, UserDocument.class);
-        
+                searchQuery, UserDocument.class);
+
         // Deduplicate by ID using a map
         java.util.Map<String, UserDocument> uniqueUsers = new java.util.LinkedHashMap<>();
         for (SearchHit<UserDocument> hit : hits.getSearchHits()) {
             UserDocument user = hit.getContent();
             uniqueUsers.putIfAbsent(user.getId(), user);
         }
-        
+
         return new ArrayList<>(uniqueUsers.values());
     }
 
