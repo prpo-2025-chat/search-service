@@ -5,7 +5,7 @@ services:
       - "8084:8084"
     environment:
       SPRING_ELASTICSEARCH_URIS: http://elasticsearch:9200
-      SERVER_SERVICE_BASE_URL: ${SERVER_SERVICE_BASE_URL:http://host.docker.internal:8031/api/}
+      SERVER_SERVICE_BASE_URL: ${SERVER_SERVICE_BASE_URL:-http://host.docker.internal:8031/api/}
     networks:
       - chat-net
     depends_on:
